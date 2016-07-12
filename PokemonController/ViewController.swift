@@ -11,35 +11,64 @@ import MapKit
 import GCDWebServer
 
 class ViewController: UIViewController, MKMapViewDelegate {
-
+    
     @IBOutlet weak var mapView: MKMapView!
     var currentLocation:CLLocationCoordinate2D!
-    //let moveInterval = 0.00005
+    var timer:NSTimer!
     var webServer:GCDWebServer = GCDWebServer()
     
-    func moveInterval() -> Double {
-        return Double("0.0000\(40 + (rand() % 20))")!
+    let initialLocation = CLLocation(latitude: -37.7983336702636, longitude: 144.978288)
+    let regionRadius: CLLocationDistance = 1000
+    
+    enum direction {
+        case UP, DOWN, LEFT, RIGHT
     }
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        centerMapOnLocation(initialLocation)
         getSavedLocation() ? showMapOnLocation() : ()
         
         startWebServer()
     }
-
+    
+    func centerMapOnLocation(location: CLLocation) {
+        let coordinateRegion = MKCoordinateRegionMakeWithDistance(location.coordinate,
+                                                                  regionRadius * 2.0, regionRadius * 2.0)
+        mapView.setRegion(coordinateRegion, animated: true)
+    }
+    
     func mapView(mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
         currentLocation = mapView.centerCoordinate
         saveLocation()
     }
-
-    func changeCurrentLocation(direction:String) {
-
-        direction == "left" ? currentLocation = CLLocationCoordinate2D(latitude: currentLocation.latitude, longitude: currentLocation.longitude - moveInterval()) : ()
-        direction == "right" ? currentLocation = CLLocationCoordinate2D(latitude: currentLocation.latitude, longitude: currentLocation.longitude + moveInterval()) : ()
-        direction == "up" ? currentLocation = CLLocationCoordinate2D(latitude: currentLocation.latitude + moveInterval(), longitude: currentLocation.longitude) : ()
-        direction == "down" ? currentLocation = CLLocationCoordinate2D(latitude: currentLocation.latitude - moveInterval(), longitude: currentLocation.longitude) : ()
+    
+    func moveInterval() -> Double {
+        return Double("0.0000\(40 + (rand() % 20))")!
+    }
+    
+    func randomBetweenNumbers(firstNumber: Double, secondNumber: Double) -> Double {
+        return Double(arc4random()) / Double(UINT32_MAX) * abs(firstNumber - secondNumber) + min(firstNumber, secondNumber)
+    }
+    
+    func changeCurrentLocation(move:direction) {
+        let jitter = randomBetweenNumbers(-0.000009, secondNumber: 0.000009)
+        
+        switch move {
+        case .UP:
+            currentLocation.latitude += moveInterval()
+            currentLocation.longitude += jitter
+        case .DOWN:
+            currentLocation.latitude -= moveInterval()
+            currentLocation.longitude += jitter
+        case .LEFT:
+            currentLocation.latitude += jitter
+            currentLocation.longitude -= moveInterval()
+        case .RIGHT:
+            currentLocation.latitude += jitter
+            currentLocation.longitude += moveInterval()
+        }
         
         saveLocation()
         showMapOnLocation()
@@ -69,33 +98,115 @@ class ViewController: UIViewController, MKMapViewDelegate {
         currentLocation = CLLocationCoordinate2D(latitude: Double(dict["lat"]!)!, longitude: Double(dict["lng"]!)!)
         return true
     }
+    @IBAction func downLong(sender: UILongPressGestureRecognizer) {
+        switch (sender.state) {
+        case .Began:
+            timer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(downDidPress), userInfo: nil, repeats: true)
+            break;
+        case .Ended:
+            
+            timer.invalidate()
+            timer = nil;
+            
+            break;
+        default:
+            break;
+        }
+
+    }
+    @IBAction func leftLong(sender: UILongPressGestureRecognizer) {
+        switch (sender.state) {
+        case .Began:
+            timer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(leftDidPress), userInfo: nil, repeats: true)
+            break;
+        case .Ended:
+            
+            timer.invalidate()
+            timer = nil;
+            
+            break;
+        default:
+            break;
+        }
+
+    }
+    
+    @IBAction func upLongPress(sender: UILongPressGestureRecognizer) {
+        switch (sender.state) {
+        case .Began:
+            timer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(upDidPress), userInfo: nil, repeats: true)
+            break;
+        case .Ended:
+            
+            timer.invalidate()
+            timer = nil;
+            
+            break;
+        default:
+            break;
+        }
+
+    }
+    func rigthDidPress(){
+        //NSLog("sdfsdfsdf")
+        changeCurrentLocation(.RIGHT)
+    }
+    func leftDidPress(){
+        //NSLog("sdfsdfsdf")
+        changeCurrentLocation(.LEFT)
+    }
+    func downDidPress(){
+        //NSLog("sdfsdfsdf")
+        changeCurrentLocation(.DOWN)
+    }
+    func upDidPress(){
+        //NSLog("sdfsdfsdf")
+        changeCurrentLocation(.UP)
+    }
+    
+    @IBAction func RigthLongPress(sender: UILongPressGestureRecognizer) {
+        switch (sender.state) {
+        case .Began:
+                timer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(rigthDidPress), userInfo: nil, repeats: true)
+            break;
+        case .Ended:
+    
+                timer.invalidate()
+                timer = nil;
+            
+            break;
+        default:
+            break;
+        }
+    }
+    
+    
     
     @IBAction func moveUp(sender: AnyObject) {
-        changeCurrentLocation("up")
+        changeCurrentLocation(.UP)
+        
     }
     
     @IBAction func moveDown(sender: AnyObject) {
-        changeCurrentLocation("down")
+        changeCurrentLocation(.DOWN)
     }
     
     @IBAction func moveLeft(sender: AnyObject) {
-        changeCurrentLocation("left")
+        changeCurrentLocation(.LEFT)
     }
     
     @IBAction func moveRight(sender: AnyObject) {
-        changeCurrentLocation("right")
+        changeCurrentLocation(.RIGHT)
     }
     
     func startWebServer(){
         webServer.addDefaultHandlerForMethod("GET", requestClass: GCDWebServerRequest.self, processBlock: {request in
             return GCDWebServerDataResponse.init(JSONObject: self.getCurrentLocationDict())
         })
-        webServer.startWithPort(80, bonjourName: "pokemonController")
+        webServer.startWithPort(8080, bonjourName: "pokemonController")
     }
     
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
-
 }
-
